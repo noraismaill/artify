@@ -85,6 +85,9 @@ function removeFromCart(index) {
     localStorage.setItem('artify-cart', JSON.stringify(cart));
 }
 
+// Customer information
+let customerInfo = JSON.parse(localStorage.getItem('customer-info')) || {};
+
 // Checkout function
 function checkout() {
     if (cart.length === 0) {
@@ -92,80 +95,156 @@ function checkout() {
         return;
     }
     
-    // Redirect to PayPal checkout
-    processPayment();
+    // Show customer info modal
+    showCustomerInfoModal();
 }
 
-// Process payment via PayPal
-function processPayment() {
-    const subtotal = cart.reduce((total, item) => total + item.price, 0);
-    
-    // Create form for PayPal checkout
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'https://www.paypal.com/cgi-bin/webscr';
-    
-    // Add PayPal required fields
-    const cmdInput = document.createElement('input');
-    cmdInput.type = 'hidden';
-    cmdInput.name = 'cmd';
-    cmdInput.value = '_xclick';
-    form.appendChild(cmdInput);
-    
-    const businessInput = document.createElement('input');
-    businessInput.type = 'hidden';
-    businessInput.name = 'business';
-    businessInput.value = 'nora.atroshy@gmail.com'; // Replace with your PayPal email
-    form.appendChild(businessInput);
-    
-    const item_nameInput = document.createElement('input');
-    item_nameInput.type = 'hidden';
-    item_nameInput.name = 'item_name';
-    item_nameInput.value = 'Art Supplies Order';
-    form.appendChild(item_nameInput);
-    
-    const amountInput = document.createElement('input');
-    amountInput.type = 'hidden';
-    amountInput.name = 'amount';
-    amountInput.value = subtotal.toFixed(2);
-    form.appendChild(amountInput);
-    
-    const currencyInput = document.createElement('input');
-    currencyInput.type = 'hidden';
-    currencyInput.name = 'currency_code';
-    currencyInput.value = 'USD';
-    form.appendChild(currencyInput);
-    
-    // Use relative paths for return URLs
-    const returnInput = document.createElement('input');
-    returnInput.type = 'hidden';
-    returnInput.name = 'return';
-    returnInput.value = 'success.html';
-    form.appendChild(returnInput);
-    
-    const cancelReturnInput = document.createElement('input');
-    cancelReturnInput.type = 'hidden';
-    cancelReturnInput.name = 'cancel_return';
-    cancelReturnInput.value = 'cancel.html';
-    form.appendChild(cancelReturnInput);
-    
-    const notifyUrlInput = document.createElement('input');
-    notifyUrlInput.type = 'hidden';
-    notifyUrlInput.name = 'notify_url';
-    notifyUrlInput.value = 'notification.html';
-    form.appendChild(notifyUrlInput);
-    
-    document.body.appendChild(form);
-    form.submit();
-    
-    // Clear cart after successful redirect
-    cart = [];
-    localStorage.setItem('artify-cart', JSON.stringify(cart));
-    
-    // Update cart count in header
-    if (cartCountElement) {
-        cartCountElement.textContent = '0';
+// Show customer information modal
+function showCustomerInfoModal() {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('customer-info-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'customer-info-modal';
+        modal.className = 'customer-info-modal';
+        modal.innerHTML = `
+            <div class="customer-info-modal-content">
+                <span class="customer-info-modal-close">&times;</span>
+                <h2>Enter Your Information</h2>
+                <form id="customer-info-form">
+                    <div class="form-group">
+                        <label for="customer-name">Full Name *</label>
+                        <input type="text" id="customer-name" name="customer-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-phone">Phone Number *</label>
+                        <input type="tel" id="customer-phone" name="customer-phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-email">Email Address *</label>
+                        <input type="email" id="customer-email" name="customer-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-location">Location/Address *</label>
+                        <textarea id="customer-location" name="customer-location" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="order-notes">Order Notes (Optional)</label>
+                        <textarea id="order-notes" name="order-notes" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">Place Order</button>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking on X or outside the form
+        modal.querySelector('.customer-info-modal-close').addEventListener('click', closeCustomerInfoModal);
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeCustomerInfoModal();
+            }
+        });
+        
+        // Handle form submission
+        document.getElementById('customer-info-form').addEventListener('submit', handleCustomerInfoSubmit);
     }
+    
+    // Pre-fill form with existing info if available
+    if (customerInfo.name) document.getElementById('customer-name').value = customerInfo.name;
+    if (customerInfo.phone) document.getElementById('customer-phone').value = customerInfo.phone;
+    if (customerInfo.email) document.getElementById('customer-email').value = customerInfo.email;
+    if (customerInfo.location) document.getElementById('customer-location').value = customerInfo.location;
+    
+    // Show modal
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+// Close customer info modal
+function closeCustomerInfoModal() {
+    const modal = document.getElementById('customer-info-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Handle customer info form submission
+function handleCustomerInfoSubmit(e) {
+    e.preventDefault();
+    
+    // Get form values
+    customerInfo = {
+        name: document.getElementById('customer-name').value,
+        phone: document.getElementById('customer-phone').value,
+        email: document.getElementById('customer-email').value,
+        location: document.getElementById('customer-location').value,
+        notes: document.getElementById('order-notes').value
+    };
+    
+    // Save to localStorage
+    localStorage.setItem('customer-info', JSON.stringify(customerInfo));
+    
+    // Close modal and process order
+    closeCustomerInfoModal();
+    processOrder();
+}
+
+// Process order (without PayPal)
+function processOrder() {
+    // Send customer information to your server
+    sendCustomerInfoToServer();
+    
+    // Redirect to success page
+    window.location.href = 'success.html';
+}
+
+// Send customer information to your server
+function sendCustomerInfoToServer() {
+    // Create a FormData object
+    const formData = new FormData();
+    
+    // Add customer information
+    formData.append('name', customerInfo.name);
+    formData.append('phone', customerInfo.phone);
+    formData.append('email', customerInfo.email);
+    formData.append('location', customerInfo.location);
+    formData.append('notes', customerInfo.notes);
+    
+    // Add cart items
+    cart.forEach((item, index) => {
+        formData.append(`item_${index}_id`, item.id);
+        formData.append(`item_${index}_title`, item.title);
+        formData.append(`item_${index}_price`, item.price);
+        formData.append(`item_${index}_description`, item.description);
+    });
+    
+    // Send data to your server
+    fetch('save_order.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('Customer information sent to server successfully');
+            // Clear cart and customer info after successful submission
+            cart = [];
+            customerInfo = {};
+            localStorage.removeItem('artify-cart');
+            localStorage.removeItem('customer-info');
+            
+            // Update cart count in header
+            if (cartCountElement) {
+                cartCountElement.textContent = '0';
+            }
+        } else {
+            console.error('Failed to send customer information to server');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending customer information to server:', error);
+    });
 }
 
 // Event listeners

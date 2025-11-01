@@ -1,6 +1,6 @@
-#  artify - E-commerce Website
+# Elegant Boutique - E-commerce Website
 
-A beautiful, responsive e-commerce website for selling art supplies with integrated PayPal payment processing.
+A beautiful, responsive e-commerce website for selling premium items with integrated PayPal payment processing.
 
 ## Features
 
